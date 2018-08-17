@@ -7,15 +7,18 @@ import pandas as pd
 import tensorflow as tf
 from matplotlib import pyplot as plt
 from sklearn.metrics import make_scorer
+# choose if you want doing the classification
 from sklearn.model_selection import StratifiedKFold
 
 import config
-from metrics import gini_norm
+from metrics import gini_norm,mae
 from DataReader import FeatureDictionary, DataParser
 sys.path.append("..")
 from DeepFM import DeepFM
 
 gini_scorer = make_scorer(gini_norm, greater_is_better=True, needs_proba=True)
+
+#mean_absolute_error_scorer = make_scorer(mae,greater_is_better=False)
 
 
 def _load_data():
@@ -26,7 +29,7 @@ def _load_data():
     def preprocess(df):
         cols = [c for c in df.columns if c not in ["id", "target"]]
         df["missing_feat"] = np.sum((df[cols] == -1).values, axis=1)
-        df["ps_car_13_x_ps_reg_03"] = df["ps_car_13"] * df["ps_reg_03"]
+        # df["ps_car_13_x_ps_reg_03"] = df["ps_car_13"] * df["ps_reg_03"]
         return df
 
     dfTrain = preprocess(dfTrain)
@@ -75,6 +78,10 @@ def _run_base_model_dfm(dfTrain, dfTest, folds, dfm_params):
         gini_results_epoch_train[i] = dfm.train_result
         gini_results_epoch_valid[i] = dfm.valid_result
 
+        # gini_results_cv[ i ] = mae( y_valid_ , y_train_meta[ valid_idx ] )
+        # gini_results_epoch_train[ i ] = dfm.train_result
+        # gini_results_epoch_valid[ i ] = dfm.valid_result
+
     y_test_meta /= float(len(folds))
 
     # save result
@@ -109,7 +116,7 @@ def _plot_fig(train_results, valid_results, model_name):
         legends.append("train-%d"%(i+1))
         legends.append("valid-%d"%(i+1))
     plt.xlabel("Epoch")
-    plt.ylabel("Normalized Gini")
+    plt.ylabel("gini_norm")
     plt.title("%s"%model_name)
     plt.legend(legends)
     plt.savefig("./fig/%s.png"%model_name)
@@ -120,8 +127,10 @@ def _plot_fig(train_results, valid_results, model_name):
 dfTrain, dfTest, X_train, y_train, X_test, ids_test, cat_features_indices = _load_data()
 
 # folds
-folds = list(StratifiedKFold(n_splits=config.NUM_SPLITS, shuffle=True,
-                             random_state=config.RANDOM_SEED).split(X_train, y_train))
+
+#from sklearn.model_selection import KFold
+
+folds = list(StratifiedKFold(n_splits=config.NUM_SPLITS, shuffle=True,random_state=config.RANDOM_SEED).split(X_train, y_train))
 
 
 # ------------------ DeepFM Model ------------------
@@ -130,17 +139,17 @@ dfm_params = {
     "use_fm": True,
     "use_deep": True,
     "embedding_size": 8,
-    "dropout_fm": [1.0, 1.0],
+    "dropout_fm": [0.8, 0.4],
     "deep_layers": [32, 32],
-    "dropout_deep": [0.5, 0.5, 0.5],
-    "deep_layers_activation": tf.nn.relu,
-    "epoch": 30,
+    "dropout_deep": [0.3, 0.3, 0.3],
+    "deep_layers_activation": tf.nn.tanh,
+    "epoch": 50,
     "batch_size": 1024,
-    "learning_rate": 0.001,
+    "learning_rate": 0.0001,
     "optimizer_type": "adam",
     "batch_norm": 1,
     "batch_norm_decay": 0.995,
-    "l2_reg": 0.01,
+    "l2_reg": 0.015,
     "verbose": True,
     "eval_metric": gini_norm,
     "random_seed": config.RANDOM_SEED
@@ -153,7 +162,7 @@ fm_params["use_deep"] = False
 y_train_fm, y_test_fm = _run_base_model_dfm(dfTrain, dfTest, folds, fm_params)
 
 
-# ------------------ DNN Model ------------------
+# ------------------ DNN Model -----------------
 dnn_params = dfm_params.copy()
 dnn_params["use_fm"] = False
 y_train_dnn, y_test_dnn = _run_base_model_dfm(dfTrain, dfTest, folds, dnn_params)

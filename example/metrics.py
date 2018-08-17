@@ -1,7 +1,13 @@
 
 import numpy as np
+from sklearn.metrics import mean_squared_error,mean_absolute_error
 
 def gini(actual, pred):
+    """
+    :param actual:
+    :param pred:
+    :return:
+    """
     assert (len(actual) == len(pred))
     all = np.asarray(np.c_[actual, pred, np.arange(len(actual))], dtype=np.float)
     all = all[np.lexsort((all[:, 2], -1 * all[:, 1]))]
@@ -11,5 +17,42 @@ def gini(actual, pred):
     giniSum -= (len(actual) + 1) / 2.
     return giniSum / len(actual)
 
+
 def gini_norm(actual, pred):
+    """
+
+    :param actual:
+    :param pred:
+    :return:
+    """
     return gini(actual, pred) / gini(actual, actual)
+
+
+def mae(actual,pred):
+    """
+
+    :param actual:
+    :param pred:
+    :return:
+    """
+    assert (len( actual ) == len( pred ))
+    totalLosses = mean_absolute_error(actual, pred)
+
+    return totalLosses
+
+
+def rmse(actual,pred):
+
+    """
+    :param actual:
+    :param pred:
+    :return:
+
+    """
+    rmsev = mean_squared_error(actual, pred)
+
+    return rmsev
+
+
+
+
